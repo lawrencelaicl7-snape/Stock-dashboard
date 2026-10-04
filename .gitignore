@@ -5,3 +5,4 @@ _site/
 data/pipeline.log
 data/screen_results.json
 .claude/settings.local.json
+data/link_check.md

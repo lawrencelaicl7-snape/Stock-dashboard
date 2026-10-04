@@ -1,0 +1,24 @@
+name: Check research links
+
+# Manual only: Actions tab -> "Check research links" -> Run workflow.
+# Results appear on the run's summary page (and as the link-check artifact).
+on:
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - run: python pipeline/check_links.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: link-check
+          path: data/link_check.md

@@ -102,6 +102,8 @@ Every run writes `data/stocks.json` with a `generated_at` timestamp, a `sources`
 
 **Research links** in the detail panel use URL patterns verified in October 2026: Yahoo Finance, StockAnalysis, Finviz (US), Morningstar, Bloomberg, SGX announcements and The Business Times (SG), Bursa announcements and The Edge Malaysia (MY). Websites change their URLs over time; if one breaks, edit `links()` in `assets/app.js`.
 
+To re-check every link, run **Actions → Check research links → Run workflow**. It fetches each URL from GitHub's servers and lists the HTTP status and page title on the run's summary page, so you can see whether each link lands on the right company. Some sites (notably Bloomberg) refuse automated requests and show as *blocked*; check those by clicking them in your browser. The checker's URL rules live in `pipeline/check_links.py` and must be kept in step with `links()` in `assets/app.js`.
+
 ---
 
 ## How the automatic refresh works
@@ -139,6 +141,7 @@ config/universe.json       stock lists (edit this)
 pipeline/fetch_data.py     downloads data, handles retries and stale fallback
 pipeline/analytics.py      indicators, factor percentiles, rule-based signals
 pipeline/screen_universe.py helper to rank candidates by market cap and liquidity
+pipeline/check_links.py    checks the research-link URL patterns (run via Actions)
 data/stocks.json           output consumed by the website
 index.html, assets/        the static website (ECharts from cdnjs)
 .github/workflows/         scheduled refresh + GitHub Pages deploy
