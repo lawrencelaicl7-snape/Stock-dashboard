@@ -1,0 +1,88 @@
+name: Update data and deploy
+
+on:
+  schedule:
+    # Times are UTC. Weekdays only.
+    - cron: "0 10 * * 1-5"   # 18:00 SGT/MYT — after SGX and Bursa close (17:00)
+    - cron: "0 22 * * 1-5"   # 18:00 New York (EDT) / 17:00 (EST) — after US close
+  workflow_dispatch: {}      # "Run workflow" button on the Actions tab
+  push:
+    branches: [main]
+    paths-ignore: ["data/**", "README.md"]   # redeploy when the site code changes
+
+concurrency:
+  group: update-and-deploy
+  cancel-in-progress: false
+
+jobs:
+  update:
+    # Code pushes only redeploy; scheduled and manual runs refresh the data first.
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline
+        run: python pipeline/fetch_data.py
+
+      - name: Upload run log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-log
+          path: data/pipeline.log
+          retention-days: 14
+
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/stocks.json
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "Data update $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+
+  deploy:
+    needs: update
+    if: always() && (needs.update.result == 'success' || needs.update.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main   # pick up the data commit made by the update job
+
+      - name: Assemble site
+        run: |
+          mkdir -p _site/data
+          cp index.html _site/
+          cp -r assets _site/
+          cp data/stocks.json _site/data/
+          touch _site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

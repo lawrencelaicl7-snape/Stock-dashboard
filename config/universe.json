@@ -1,0 +1,83 @@
+{
+  "_comment": "Edit these lists to change the stocks tracked. 'symbol' must be the Yahoo Finance ticker (SGX ends in .SI, Bursa ends in .KL). 'name' is only a fallback label; 'code' is the exchange code used for SGX/Bursa links. Optional: 'bursa_name' (Bursa short name, used for StockAnalysis links), 'sgx_name' (exact SGX-registered company name for the announcements link; defaults to Yahoo's full name in capitals), 'news_query' (custom Google News search). Changes take effect on the next pipeline run.",
+  "markets": {
+    "US": {
+      "label": "United States",
+      "currency": "USD",
+      "stocks": [
+        {"symbol": "NVDA", "name": "NVIDIA"},
+        {"symbol": "AAPL", "name": "Apple", "news_query": "\"Apple\" stock"},
+        {"symbol": "GOOGL", "name": "Alphabet (Class A)", "news_query": "\"Alphabet\" OR \"Google\" stock"},
+        {"symbol": "MSFT", "name": "Microsoft"},
+        {"symbol": "AMZN", "name": "Amazon"},
+        {"symbol": "TSM", "name": "Taiwan Semiconductor (ADR)", "news_query": "\"TSMC\""},
+        {"symbol": "META", "name": "Meta Platforms"},
+        {"symbol": "AVGO", "name": "Broadcom"},
+        {"symbol": "TSLA", "name": "Tesla"},
+        {"symbol": "MU", "name": "Micron Technology", "news_query": "\"Micron\""},
+        {"symbol": "BRK-B", "name": "Berkshire Hathaway (Class B)", "news_query": "\"Berkshire Hathaway\""},
+        {"symbol": "AMD", "name": "Advanced Micro Devices", "news_query": "\"AMD\" stock"},
+        {"symbol": "LLY", "name": "Eli Lilly"},
+        {"symbol": "JPM", "name": "JPMorgan Chase"},
+        {"symbol": "WMT", "name": "Walmart"},
+        {"symbol": "V", "name": "Visa", "news_query": "\"Visa Inc\" OR \"Visa stock\" OR \"Visa shares\""},
+        {"symbol": "XOM", "name": "ExxonMobil"},
+        {"symbol": "INTC", "name": "Intel"},
+        {"symbol": "JNJ", "name": "Johnson & Johnson"},
+        {"symbol": "MA", "name": "Mastercard"}
+      ]
+    },
+    "SG": {
+      "label": "Singapore",
+      "currency": "SGD",
+      "stocks": [
+        {"symbol": "D05.SI", "code": "D05", "name": "DBS Group", "news_query": "\"DBS\" bank"},
+        {"symbol": "O39.SI", "code": "O39", "name": "OCBC"},
+        {"symbol": "U11.SI", "code": "U11", "name": "UOB"},
+        {"symbol": "Z74.SI", "code": "Z74", "name": "Singtel"},
+        {"symbol": "S63.SI", "code": "S63", "name": "ST Engineering"},
+        {"symbol": "S68.SI", "code": "S68", "name": "Singapore Exchange", "news_query": "\"Singapore Exchange\" OR \"SGX Group\""},
+        {"symbol": "H78.SI", "code": "H78", "name": "Hongkong Land"},
+        {"symbol": "F34.SI", "code": "F34", "name": "Wilmar International", "news_query": "\"Wilmar\""},
+        {"symbol": "C6L.SI", "code": "C6L", "name": "Singapore Airlines"},
+        {"symbol": "J36.SI", "code": "J36", "name": "Jardine Matheson"},
+        {"symbol": "BN4.SI", "code": "BN4", "name": "Keppel Ltd", "news_query": "\"Keppel\""},
+        {"symbol": "BS6.SI", "code": "BS6", "name": "Yangzijiang Shipbuilding"},
+        {"symbol": "C38U.SI", "code": "C38U", "name": "CapitaLand Integrated Commercial Trust"},
+        {"symbol": "9CI.SI", "code": "9CI", "name": "CapitaLand Investment"},
+        {"symbol": "A17U.SI", "code": "A17U", "name": "CapitaLand Ascendas REIT"},
+        {"symbol": "Y92.SI", "code": "Y92", "name": "Thai Beverage", "news_query": "\"ThaiBev\" OR \"Thai Beverage\""},
+        {"symbol": "C07.SI", "code": "C07", "name": "Jardine Matheson SE Asia", "news_query": "\"Jardine Matheson Southeast Asia\" OR \"Jardine Cycle\""},
+        {"symbol": "U96.SI", "code": "U96", "name": "Sembcorp Industries"},
+        {"symbol": "G13.SI", "code": "G13", "name": "Genting Singapore"},
+        {"symbol": "5E2.SI", "code": "5E2", "name": "Seatrium"}
+      ]
+    },
+    "MY": {
+      "label": "Malaysia",
+      "currency": "MYR",
+      "stocks": [
+        {"symbol": "1155.KL", "code": "1155", "bursa_name": "MAYBANK", "name": "Maybank", "news_query": "\"Maybank\" -\"Maybank Highway\""},
+        {"symbol": "1295.KL", "code": "1295", "bursa_name": "PBBANK", "name": "Public Bank", "news_query": "\"Public Bank\" Malaysia"},
+        {"symbol": "1023.KL", "code": "1023", "bursa_name": "CIMB", "name": "CIMB Group", "news_query": "\"CIMB\""},
+        {"symbol": "5347.KL", "code": "5347", "bursa_name": "TENAGA", "name": "Tenaga Nasional"},
+        {"symbol": "5225.KL", "code": "5225", "bursa_name": "IHH", "name": "IHH Healthcare"},
+        {"symbol": "8869.KL", "code": "8869", "bursa_name": "PMETAL", "name": "Press Metal Aluminium", "news_query": "\"Press Metal\""},
+        {"symbol": "6742.KL", "code": "6742", "bursa_name": "YTLPOWR", "name": "YTL Power International"},
+        {"symbol": "5819.KL", "code": "5819", "bursa_name": "HLBANK", "name": "Hong Leong Bank"},
+        {"symbol": "5285.KL", "code": "5285", "bursa_name": "SDG", "name": "SD Guthrie"},
+        {"symbol": "6033.KL", "code": "6033", "bursa_name": "PETGAS", "name": "PETRONAS Gas"},
+        {"symbol": "5183.KL", "code": "5183", "bursa_name": "PCHEM", "name": "PETRONAS Chemicals"},
+        {"symbol": "3816.KL", "code": "3816", "bursa_name": "MISC", "name": "MISC", "news_query": "\"MISC Bhd\" OR \"MISC Berhad\""},
+        {"symbol": "1066.KL", "code": "1066", "bursa_name": "RHBBANK", "name": "RHB Bank"},
+        {"symbol": "5398.KL", "code": "5398", "bursa_name": "GAMUDA", "name": "Gamuda"},
+        {"symbol": "4863.KL", "code": "4863", "bursa_name": "TM", "name": "Telekom Malaysia"},
+        {"symbol": "1961.KL", "code": "1961", "bursa_name": "IOICORP", "name": "IOI Corporation", "news_query": "\"IOI Corp\" OR \"IOI Corporation\""},
+        {"symbol": "5211.KL", "code": "5211", "bursa_name": "SUNWAY", "name": "Sunway Berhad", "news_query": "\"Sunway Bhd\" OR \"Sunway Berhad\""},
+        {"symbol": "4677.KL", "code": "4677", "bursa_name": "YTL", "name": "YTL Corporation", "news_query": "\"YTL Corp\" OR \"YTL Corporation\""},
+        {"symbol": "5326.KL", "code": "5326", "bursa_name": "99SMART", "name": "99 Speed Mart Retail", "news_query": "\"99 Speed Mart\""},
+        {"symbol": "2445.KL", "code": "2445", "bursa_name": "KLK", "name": "Kuala Lumpur Kepong"}
+      ]
+    }
+  }
+}
