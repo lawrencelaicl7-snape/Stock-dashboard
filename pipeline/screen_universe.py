@@ -96,6 +96,11 @@ def screen(market):
     symbols = [c + SUFFIX[market] for c in CANDIDATES[market]]
     with ThreadPoolExecutor(max_workers=6) as pool:
         rows = list(pool.map(fetch, symbols))
+    # Second pass, one at a time, for anything Yahoo dropped under parallel load.
+    for i, r in enumerate(rows):
+        if r.get("error") or not r.get("market_cap"):
+            time.sleep(3)
+            rows[i] = fetch(r["symbol"])
     fx = {}
     ok = []
     for r in rows:
