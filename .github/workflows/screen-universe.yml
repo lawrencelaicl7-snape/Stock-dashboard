@@ -1,0 +1,28 @@
+name: Screen stock universe
+
+# Manual only: Actions -> "Screen stock universe" -> Run workflow.
+# Proposes the top 20 per market (liquidity hurdle, then size + quality ranking).
+# It never edits config/universe.json; results appear on the run's summary page.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python pipeline/screen_universe.py --json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screen-results
+          path: |
+            data/screen_results.json
+            data/screen_results.md

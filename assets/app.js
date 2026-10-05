@@ -6,14 +6,17 @@
     { key: "momentum", label: "Momentum", desc: "1M/3M/6M returns, RSI, price vs 50/200-day MA" },
     { key: "volume", label: "Volume", desc: "Latest volume vs 20-day average" },
     { key: "value", label: "Value", desc: "P/E, P/B, dividend yield vs market peers" },
+    { key: "quality", label: "Quality", desc: "Profitability (ROE, ROA, margin), cash flow (FCF yield, cash conversion), growth" },
     { key: "attention", label: "Attention", desc: "News count (7d); Reddit + StockTwits for US" },
     { key: "reporting", label: "Reporting", desc: "Days to earnings, last EPS surprise" },
   ];
   const PRESETS = {
-    balanced: { momentum: 20, volume: 20, value: 20, attention: 20, reporting: 20 },
-    momentum: { momentum: 45, volume: 25, value: 5, attention: 15, reporting: 10 },
-    value: { momentum: 10, volume: 5, value: 60, attention: 10, reporting: 15 },
-    event: { momentum: 10, volume: 25, value: 5, attention: 25, reporting: 35 },
+    // Volume (liquidity/activity) is never the largest weight in any preset.
+    balanced: { momentum: 20, volume: 20, value: 20, quality: 20, attention: 20, reporting: 20 },
+    momentum: { momentum: 40, volume: 15, value: 5, quality: 15, attention: 15, reporting: 10 },
+    value: { momentum: 10, volume: 5, value: 45, quality: 30, attention: 5, reporting: 5 },
+    quality: { momentum: 15, volume: 5, value: 20, quality: 50, attention: 5, reporting: 5 },
+    event: { momentum: 10, volume: 15, value: 5, quality: 10, attention: 25, reporting: 35 },
   };
   const MARKET_LABEL = { US: "United States", SG: "Singapore", MY: "Malaysia" };
   const LS = {
@@ -40,6 +43,7 @@
   // ------------------------------------------------------------------ formatting
   const fmtNum = (v, d = 2) => (isNum(v) ? v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }) : "—");
   const fmtPct = (v, d = 1) => (isNum(v) ? `${v > 0 ? "+" : ""}${v.toFixed(d)}%` : "—");
+  const pctOrDash = (v, d = 1) => (isNum(v) ? `${v.toFixed(d)}%` : "—");
   const fmtPrice = (v) => (isNum(v) ? fmtNum(v, v < 1 ? 3 : 2) : "—");
   const fmtBig = (v) => {
     if (!isNum(v)) return "—";
@@ -205,10 +209,10 @@
   }
 
   // ------------------------------------------------------------------ heat map
-  function heatValue(s) { return state.heat === "focus" ? s._focus : s[state.heat]; }
+  function heatValue(s) { return state.heat === "focus" ? s._focus : state.heat === "quality" ? s.factors?.quality : s[state.heat]; }
   function heatScale(list) {
     const m = state.heat;
-    if (m === "focus") return { kind: "seq", lo: 0, hi: 100, fmt: (v) => v.toFixed(0) };
+    if (m === "focus" || m === "quality") return { kind: "seq", lo: 0, hi: 100, fmt: (v) => v.toFixed(0) };
     if (m === "rel_volume") return { kind: "div", center: 1, lim: 1, fmt: (v) => v.toFixed(2) + "x" };
     const vals = list.map((s) => Math.abs(s[m])).filter(isNum).sort((a, b) => a - b);
     const p90 = vals.length ? vals[Math.floor(vals.length * 0.9)] : 1;
@@ -302,6 +306,10 @@
     { key: "pe", label: "P/E", render: (s) => (isNum(s.pe) ? (s.pe < 0 ? "neg" : fmtNum(s.pe, 1)) + (s.pe_basis === "forward" ? "ᶠ" : "") : "—") },
     { key: "pb", label: "P/B", render: (s) => fmtNum(s.pb, 2) },
     { key: "div_yield", label: "Div %", render: (s) => (isNum(s.div_yield) ? s.div_yield.toFixed(2) + "%" : "—") },
+    { key: "roe", label: "ROE", render: (s) => (isNum(s.roe) ? `<span class="${signCls(s.roe)}">${s.roe.toFixed(1)}%</span>` : "—") },
+    { key: "fcf_yield", label: "FCF yld", sortVal: (s) => (s.cash_flow_exempt ? null : s.fcf_yield),
+      render: (s) => (s.cash_flow_exempt ? '<span class="ccy" title="Not meaningful for banks and insurers">n.m.</span>' : isNum(s.fcf_yield) ? `<span class="${signCls(s.fcf_yield)}">${s.fcf_yield.toFixed(1)}%</span>` : "—") },
+    { key: "earnings_growth", label: "EPS gr.", render: (s) => (isNum(s.earnings_growth) ? `<span class="${signCls(s.earnings_growth)}">${fmtPct(s.earnings_growth, 0)}</span>` : "—") },
     { key: "market_cap_usd", label: "Mkt cap", render: (s) => `<span class="ccy">${esc(s.currency)}</span>${fmtBig(s.market_cap)}` },
     { key: "days_to_earnings", label: "Earnings", sortVal: (s) => (isNum(s.days_to_earnings) && s.days_to_earnings >= 0 ? s.days_to_earnings : 9999), dirDefault: 1,
       render: (s) => (s.next_earnings ? `${fmtDate(s.next_earnings)} <span class="ccy">(${s.days_to_earnings}d)</span>` : "—") },
@@ -425,6 +433,14 @@
         ${kv(`P/E (${s.pe_basis || "trailing"})`, fmtNum(s.pe, 1))}
         ${kv("P/B", fmtNum(s.pb, 2))}
         ${kv("Dividend yield", isNum(s.div_yield) ? s.div_yield.toFixed(2) + "%" : "—")}
+        ${kv("ROE", pctOrDash(s.roe))}
+        ${kv("ROA", pctOrDash(s.roa))}
+        ${kv("Operating margin", pctOrDash(s.op_margin))}
+        ${kv("Free cash flow", s.cash_flow_exempt ? "n.m. (bank/insurer)" : isNum(s.fcf) ? `${esc(s.currency)} ${fmtBig(s.fcf)}` : "—")}
+        ${kv("FCF yield", s.cash_flow_exempt ? "n.m." : pctOrDash(s.fcf_yield))}
+        ${kv("Cash conversion (OCF/NI)", s.cash_flow_exempt ? "n.m." : pctOrDash(s.cash_conversion, 0))}
+        ${kv("Revenue growth (YoY)", isNum(s.revenue_growth) ? fmtPct(s.revenue_growth) : "—")}
+        ${kv("Earnings growth (YoY)", isNum(s.earnings_growth) ? fmtPct(s.earnings_growth) : "—")}
         ${kv("52-week high", fmtPrice(s.high_52w))}
         ${kv("52-week low", fmtPrice(s.low_52w))}
         ${kv("RSI (14)", fmtNum(s.rsi14, 1))}

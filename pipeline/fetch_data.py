@@ -37,6 +37,7 @@ UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
 SOURCES = {
     "prices": "Yahoo Finance via yfinance (daily OHLCV, 2y; returns use dividend-adjusted closes)",
     "fundamentals": "Yahoo Finance via yfinance .info (market cap, P/E, P/B, dividend yield, 52w range, sector, analyst target & rating)",
+    "quality": "Yahoo Finance via yfinance .info (ROE, ROA, operating margin, free & operating cash flow, net income, revenue & earnings growth; trailing 12 months / latest quarter year-on-year)",
     "earnings": "Yahoo Finance via yfinance (.calendar for next date, .get_earnings_dates for EPS surprise)",
     "news": "Yahoo Finance via yfinance; falls back to Google News RSS search (last 7 days) when Yahoo returns nothing",
     "reddit": "ApeWisdom public API (Reddit mentions, last 24h vs previous 24h) — US only",
@@ -125,6 +126,17 @@ def _tidy(df):
 
 
 # ---------------------------------------------------------------- fundamentals / events
+FUND_KEYS = ("long_name", "sector", "industry", "currency", "exchange", "market_cap", "pe", "pe_basis", "pb",
+             "div_yield", "high_52w", "low_52w", "target_mean", "rating", "n_analysts", "website",
+             "roe", "roa", "op_margin", "fcf", "ocf", "net_income", "fcf_yield", "cash_conversion",
+             "revenue_growth", "earnings_growth")
+
+
+def _pct(x):
+    """Yahoo ratio (0.25) -> percent (25.0)."""
+    return None if x is None else float(x) * 100
+
+
 def fundamentals(sym: str) -> dict | None:
     info = retry(lambda: yf.Ticker(sym).info, what=f"info {sym}")
     if not info or not (info.get("marketCap") or info.get("regularMarketPrice")):
@@ -151,6 +163,11 @@ def fundamentals(sym: str) -> dict | None:
         "rating": info.get("recommendationKey") if info.get("recommendationKey") not in (None, "none") else None,
         "n_analysts": info.get("numberOfAnalystOpinions"),
         "website": info.get("website"),
+        **analytics.quality_inputs(
+            market_cap=info.get("marketCap"), fcf=info.get("freeCashflow"), ocf=info.get("operatingCashflow"),
+            net_income=info.get("netIncomeToCommon"), roe=_pct(info.get("returnOnEquity")),
+            roa=_pct(info.get("returnOnAssets")), op_margin=_pct(info.get("operatingMargins")),
+            revenue_growth=_pct(info.get("revenueGrowth")), earnings_growth=_pct(info.get("earningsGrowth"))),
     }
 
 
@@ -320,9 +337,7 @@ def main():
 
             f = fundamentals(sym)
             if f is None and prev:
-                f = {k: prev.get(k) for k in ("long_name", "sector", "industry", "currency", "exchange",
-                                              "market_cap", "pe", "pe_basis", "pb", "div_yield", "high_52w",
-                                              "low_52w", "target_mean", "rating", "n_analysts", "website")}
+                f = {k: prev.get(k) for k in FUND_KEYS}
                 rec["stale_fields"].append("fundamentals")
                 errors.append({"symbol": sym, "error": "fundamentals unavailable — kept previous values"})
             rec.update(f or {"currency": cfg["markets"][market]["currency"]})
@@ -400,6 +415,9 @@ def main():
             "value": "Average percentile of earnings yield (1/PE), book yield (1/PB) and dividend yield",
             "attention": "Average percentile of 7-day news count, plus Reddit mentions and StockTwits activity (US only)",
             "reporting": "Average percentile of days to next earnings (sooner = higher) and last EPS surprise %",
+            "quality": "Equal-weighted average of three groups: profitability (ROE, ROA, operating margin), "
+                       "cash flow (FCF yield, operating cash flow / net income; skipped for banks and insurers) "
+                       "and growth (revenue and earnings growth, year on year)",
         },
         "errors": errors,
         "stocks": stocks,

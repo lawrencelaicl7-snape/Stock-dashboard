@@ -9,7 +9,11 @@ import math
 import numpy as np
 import pandas as pd
 
-FACTORS = ["momentum", "volume", "value", "attention", "reporting"]
+FACTORS = ["momentum", "volume", "value", "quality", "attention", "reporting"]
+
+# Industries where free cash flow and cash conversion are not meaningful (cash flows are
+# dominated by deposits, loans and insurance float), so the cash-flow group is skipped.
+CASH_FLOW_EXEMPT = ("bank", "insurance")
 
 
 # ---------------------------------------------------------------- indicators
@@ -105,6 +109,51 @@ def _r(x):
     return round(x, 4 if abs(x) < 10 else 2)
 
 
+# ---------------------------------------------------------------- quality inputs
+def quality_inputs(market_cap, fcf, ocf, net_income, roe, roa, op_margin, revenue_growth, earnings_growth):
+    """Derived profitability / cash-flow / growth fields (percent units)."""
+    return {
+        "roe": roe, "roa": roa, "op_margin": op_margin,
+        "fcf": fcf, "ocf": ocf, "net_income": net_income,
+        "fcf_yield": (fcf / market_cap * 100) if fcf is not None and market_cap else None,
+        # Only meaningful when the company is profitable; >100% means earnings are fully backed by cash.
+        "cash_conversion": (ocf / net_income * 100) if ocf is not None and net_income and net_income > 0 else None,
+        "revenue_growth": revenue_growth, "earnings_growth": earnings_growth,
+    }
+
+
+def cash_flow_exempt(s: dict) -> bool:
+    return any(w in (s.get("industry") or "").lower() for w in CASH_FLOW_EXEMPT)
+
+
+def quality_components(stocks: list[dict]) -> dict:
+    """Component percentiles, grouped: {group: {component: [pct per stock]}}."""
+    def col(key, skip_exempt=False):
+        return [None if skip_exempt and cash_flow_exempt(s) else s.get(key) for s in stocks]
+
+    return {
+        "Profitability": {
+            "ROE": percentile(col("roe")),
+            "ROA": percentile(col("roa")),
+            "Operating margin": percentile(col("op_margin")),
+        },
+        "Cash flow": {
+            "FCF yield": percentile(col("fcf_yield", True)),
+            "Cash conversion (OCF/NI)": percentile(col("cash_conversion", True)),
+        },
+        "Growth": {
+            "Revenue growth": percentile(col("revenue_growth")),
+            "Earnings growth": percentile(col("earnings_growth")),
+        },
+    }
+
+
+def quality_scores(groups: dict) -> list:
+    """Equal weight per group (each group = mean of its available components)."""
+    group_means = [_mean_components(list(g.values())) for g in groups.values()]
+    return _mean_components(group_means)
+
+
 # ---------------------------------------------------------------- scoring
 def percentile(values: list, higher_is_better: bool = True) -> list:
     """Percentile rank 0-100 among non-missing values (ties averaged); None stays None."""
@@ -169,8 +218,12 @@ def score_market(stocks: list[dict]) -> None:
         },
     }
     scores = {f: _mean_components(list(c.values())) for f, c in comp.items()}
+    q_groups = quality_components(stocks)
+    scores["quality"] = quality_scores(q_groups)
+    comp["quality"] = {name: v for g in q_groups.values() for name, v in g.items()}
     for i, s in enumerate(stocks):
         s["factors"] = {f: scores[f][i] for f in FACTORS}
+        s["cash_flow_exempt"] = cash_flow_exempt(s)
         s["factor_components"] = {
             f: {name: (None if v[i] is None else round(v[i], 1)) for name, v in c.items()}
             for f, c in comp.items()
@@ -242,6 +295,19 @@ def build_signals(s: dict, market_news_p80: float | None) -> list[dict]:
     if up is not None and abs(up) >= 15 and (s.get("n_analysts") or 0) >= 3:
         add(f"Analyst mean target {abs(up):.0f}% {'above' if up > 0 else 'below'} price ({s['n_analysts']} analysts)",
             "info", 2)
+    roe = s.get("roe")
+    if roe is not None and roe >= 20:
+        add(f"High profitability: ROE {roe:.0f}%", "bull", 2.5, f"ROE {roe:.1f}%")
+    if not cash_flow_exempt(s):
+        fy = s.get("fcf_yield")
+        if fy is not None and fy < 0:
+            add(f"Negative free cash flow (FCF yield {fy:.1f}%)", "bear", 3, f"FCF yld {fy:.1f}%")
+        elif fy is not None and fy >= 6:
+            add(f"Strong free cash flow: FCF yield {fy:.1f}%", "bull", 2.5, f"FCF yld {fy:.1f}%")
+    eg = s.get("earnings_growth")
+    if eg is not None and abs(eg) >= 25:
+        add(f"Earnings {'up' if eg > 0 else 'down'} {abs(eg):.0f}% year on year", "bull" if eg > 0 else "bear",
+            2 + min(abs(eg), 100) / 50, f"EPS g {eg:.0f}%")
     dy = s.get("div_yield")
     if dy is not None and dy >= 6:
         add(f"Dividend yield {dy:.1f}%", "info", 1.5)
