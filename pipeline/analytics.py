@@ -120,7 +120,7 @@ def market_cap(info: dict, fast_info_cap=None):
     if shares and price:
         return shares * price, "shares x price"
     if fast_info_cap:
-        return fast_info_cap, "yfinance estimate"
+        return fast_info_cap, "shares history x price"
     return None, None
 
 

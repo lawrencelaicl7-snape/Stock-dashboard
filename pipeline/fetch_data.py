@@ -143,8 +143,7 @@ def fundamentals(sym: str) -> dict | None:
         return None
     mcap, mcap_basis = analytics.market_cap(info)
     if mcap is None:
-        mcap, mcap_basis = analytics.market_cap(
-            info, retry(lambda: float(yf.Ticker(sym).fast_info["market_cap"]), what=f"fast_info {sym}", tries=2))
+        mcap, mcap_basis = analytics.market_cap(info, shares_history_cap(sym, info))
     pe = info.get("trailingPE")
     pe_basis = "trailing"
     if pe is None and info.get("forwardPE"):
@@ -174,6 +173,16 @@ def fundamentals(sym: str) -> dict | None:
             roa=_pct(info.get("returnOnAssets")), op_margin=_pct(info.get("operatingMargins")),
             revenue_growth=_pct(info.get("revenueGrowth")), earnings_growth=_pct(info.get("earningsGrowth"))),
     }
+
+
+def shares_history_cap(sym: str, info: dict) -> float | None:
+    """Market cap from yfinance's share-count history (latest value) x price."""
+    price = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose")
+    shares = retry(lambda: yf.Ticker(sym).get_shares_full(start=(date.today() - timedelta(days=550)).isoformat()),
+                   what=f"shares history {sym}", tries=2)
+    if price and shares is not None and len(shares):
+        return float(shares.dropna().iloc[-1]) * price
+    return None
 
 
 def earnings(sym: str) -> dict:
@@ -346,12 +355,18 @@ def main():
                 rec["stale_fields"].append("fundamentals")
                 errors.append({"symbol": sym, "error": "fundamentals unavailable — kept previous values"})
             rec.update(f or {"currency": cfg["markets"][market]["currency"]})
-            if rec.get("market_cap") is None and prev and prev.get("market_cap"):
-                # Keep yesterday's market cap so the heat-map tile keeps its size.
-                rec["market_cap"] = prev["market_cap"]
-                rec["market_cap_basis"] = "previous run"
+            last_good = prev and (prev.get("market_cap_last_good") or
+                                  ({"value": prev["market_cap"], "as_of": prev.get("last_updated")}
+                                   if prev.get("market_cap") and prev.get("market_cap_basis") != "carried forward" else None))
+            if rec.get("market_cap") is not None:
+                rec["market_cap_last_good"] = {"value": rec["market_cap"], "as_of": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+            elif last_good:
+                # Keep the last good market cap so the heat-map tile keeps its size.
+                rec["market_cap"] = last_good["value"]
+                rec["market_cap_basis"] = "carried forward"
+                rec["market_cap_last_good"] = last_good
                 rec["stale_fields"].append("market_cap")
-                errors.append({"symbol": sym, "error": "market cap unavailable — kept previous value"})
+                errors.append({"symbol": sym, "error": f"market cap unavailable — using last good value from {(last_good.get('as_of') or '')[:10]}"})
             rec["currency"] = rec.get("currency") or cfg["markets"][market]["currency"]
             # Prefer Yahoo's 52w range; fall back to range computed from daily closes.
             rec["high_52w"] = rec.get("high_52w") or rec["high_52w_calc"]

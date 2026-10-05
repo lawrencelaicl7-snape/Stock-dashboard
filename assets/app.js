@@ -429,7 +429,7 @@
       </section>
 
       <section><h3>Key ratios</h3><div class="kv" style="margin-top:6px">
-        ${kv("Market cap", `${esc(s.currency)} ${fmtBig(s.market_cap)}${s.market_cap_basis && s.market_cap_basis !== "reported" ? ` <small class="ccy">(${esc(s.market_cap_basis)})</small>` : ""}`)}
+        ${kv("Market cap", `${esc(s.currency)} ${fmtBig(s.market_cap)}${s.market_cap_basis && s.market_cap_basis !== "reported" ? ` <small class="ccy">(${esc(s.market_cap_basis)}${s.market_cap_basis === "carried forward" && s.market_cap_last_good?.as_of ? " from " + fmtDate(s.market_cap_last_good.as_of.slice(0, 10)) : ""})</small>` : ""}`)}
         ${kv(`P/E (${s.pe_basis || "trailing"})`, fmtNum(s.pe, 1))}
         ${kv("P/B", fmtNum(s.pb, 2))}
         ${kv("Dividend yield", isNum(s.div_yield) ? s.div_yield.toFixed(2) + "%" : "—")}

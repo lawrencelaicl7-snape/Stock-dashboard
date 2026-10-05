@@ -74,7 +74,10 @@ def fetch(symbol):
             mcap, _ = analytics.market_cap(info)
             if mcap is None:
                 try:
-                    mcap, _ = analytics.market_cap(info, float(tk.fast_info["market_cap"]))
+                    shares = tk.get_shares_full(start="2025-01-01")
+                    price = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose")
+                    if shares is not None and len(shares) and price:
+                        mcap, _ = analytics.market_cap(info, float(shares.dropna().iloc[-1]) * price)
                 except Exception:  # noqa: BLE001
                     pass
             row = {
