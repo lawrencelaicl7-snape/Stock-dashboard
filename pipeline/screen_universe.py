@@ -77,6 +77,15 @@ def fx_to_usd(ccy):
         return None
 
 
+_FX = {}
+
+
+def fx_to_usd_cached(ccy):
+    if ccy not in _FX:
+        _FX[ccy] = fx_to_usd(ccy)
+    return _FX[ccy]
+
+
 def fetch(symbol):
     err = None
     for attempt in range(3):
@@ -106,7 +115,9 @@ def fetch(symbol):
                 "price": info.get("regularMarketPrice") or info.get("previousClose"),
             }
             row.update(analytics.quality_inputs(
-                market_cap=mcap, fcf=info.get("freeCashflow"), ocf=info.get("operatingCashflow"),
+                market_cap=mcap, fcf=analytics.to_trading_ccy(info.get("freeCashflow"), info.get("financialCurrency"),
+                                                              info.get("currency"), fx_to_usd_cached),
+                ocf=info.get("operatingCashflow"),
                 net_income=info.get("netIncomeToCommon"), roe=_pct(info.get("returnOnEquity")),
                 roa=_pct(info.get("returnOnAssets")), op_margin=_pct(info.get("operatingMargins")),
                 revenue_growth=_pct(info.get("revenueGrowth")), earnings_growth=_pct(info.get("earningsGrowth"))))

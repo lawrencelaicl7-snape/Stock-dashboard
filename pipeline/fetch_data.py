@@ -167,8 +167,11 @@ def fundamentals(sym: str) -> dict | None:
         "rating": info.get("recommendationKey") if info.get("recommendationKey") not in (None, "none") else None,
         "n_analysts": info.get("numberOfAnalystOpinions"),
         "website": info.get("website"),
+        "financial_currency": info.get("financialCurrency"),
         **analytics.quality_inputs(
-            market_cap=mcap, fcf=info.get("freeCashflow"), ocf=info.get("operatingCashflow"),
+            market_cap=mcap, fcf=analytics.to_trading_ccy(info.get("freeCashflow"), info.get("financialCurrency"),
+                                                          info.get("currency"), usd_rate),
+            ocf=info.get("operatingCashflow"),
             net_income=info.get("netIncomeToCommon"), roe=_pct(info.get("returnOnEquity")),
             roa=_pct(info.get("returnOnAssets")), op_margin=_pct(info.get("operatingMargins")),
             revenue_growth=_pct(info.get("revenueGrowth")), earnings_growth=_pct(info.get("earningsGrowth"))),
@@ -302,6 +305,16 @@ def stocktwits(sym: str) -> dict | None:
         "stocktwits_bearish": senti.count("Bearish"),
         "stocktwits_sample": len(msgs),
     }
+
+
+_FX_CACHE: dict[str, float | None] = {"USD": 1.0}
+
+
+def usd_rate(ccy: str) -> float | None:
+    """Value of 1 unit of ccy in USD (cached per run)."""
+    if ccy not in _FX_CACHE:
+        _FX_CACHE[ccy] = retry(lambda: float(yf.Ticker(f"{ccy}USD=X").fast_info["last_price"]), what=f"fx {ccy}")
+    return _FX_CACHE[ccy]
 
 
 def fx_rates(currencies) -> dict[str, float | None]:

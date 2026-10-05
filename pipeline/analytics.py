@@ -124,6 +124,15 @@ def market_cap(info: dict, fast_info_cap=None):
     return None, None
 
 
+def to_trading_ccy(amount, financial_ccy, trading_ccy, usd_rate):
+    """Convert a reported figure (e.g. free cash flow in TWD) into the trading currency (e.g. USD).
+    usd_rate(ccy) -> value of 1 unit in USD, or None. Returns None if a rate is missing (never guessed)."""
+    if amount is None or not financial_ccy or not trading_ccy or financial_ccy == trading_ccy:
+        return amount
+    a, b = usd_rate(financial_ccy), usd_rate(trading_ccy)
+    return amount * a / b if a and b else None
+
+
 # ---------------------------------------------------------------- quality inputs
 def quality_inputs(market_cap, fcf, ocf, net_income, roe, roa, op_margin, revenue_growth, earnings_growth):
     """Derived profitability / cash-flow / growth fields (percent units)."""
