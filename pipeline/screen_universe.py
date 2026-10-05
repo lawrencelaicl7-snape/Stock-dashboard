@@ -52,6 +52,18 @@ QUALITY_WEIGHT = 0.5
 PICKS = 20
 
 
+def _last_good_caps():
+    """Last good market caps carried by the dashboard data (fallback when Yahoo omits one)."""
+    try:
+        d = json.loads((ROOT / "data" / "stocks.json").read_text(encoding="utf-8"))
+        return {s["symbol"]: s["market_cap_last_good"]["value"] for s in d["stocks"] if s.get("market_cap_last_good")}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+LAST_GOOD = _last_good_caps()
+
+
 def _pct(x):
     return None if x is None else float(x) * 100
 
@@ -80,6 +92,9 @@ def fetch(symbol):
                         mcap, _ = analytics.market_cap(info, float(shares.dropna().iloc[-1]) * price)
                 except Exception:  # noqa: BLE001
                     pass
+            if mcap is None and LAST_GOOD.get(symbol):
+                mcap = LAST_GOOD[symbol]
+                print(f"note: {symbol} market cap carried forward from dashboard data")
             row = {
                 "symbol": symbol,
                 "name": info.get("longName") or info.get("shortName"),
