@@ -69,19 +69,26 @@ def fetch(symbol):
     err = None
     for attempt in range(3):
         try:
-            info = yf.Ticker(symbol).info
+            tk = yf.Ticker(symbol)
+            info = tk.info
+            mcap, _ = analytics.market_cap(info)
+            if mcap is None:
+                try:
+                    mcap, _ = analytics.market_cap(info, float(tk.fast_info["market_cap"]))
+                except Exception:  # noqa: BLE001
+                    pass
             row = {
                 "symbol": symbol,
                 "name": info.get("longName") or info.get("shortName"),
                 "sector": info.get("sector"),
                 "industry": info.get("industry"),
                 "currency": info.get("currency"),
-                "market_cap": info.get("marketCap"),
+                "market_cap": mcap,
                 "avg_volume": info.get("averageVolume"),
                 "price": info.get("regularMarketPrice") or info.get("previousClose"),
             }
             row.update(analytics.quality_inputs(
-                market_cap=info.get("marketCap"), fcf=info.get("freeCashflow"), ocf=info.get("operatingCashflow"),
+                market_cap=mcap, fcf=info.get("freeCashflow"), ocf=info.get("operatingCashflow"),
                 net_income=info.get("netIncomeToCommon"), roe=_pct(info.get("returnOnEquity")),
                 roa=_pct(info.get("returnOnAssets")), op_margin=_pct(info.get("operatingMargins")),
                 revenue_growth=_pct(info.get("revenueGrowth")), earnings_growth=_pct(info.get("earningsGrowth"))))

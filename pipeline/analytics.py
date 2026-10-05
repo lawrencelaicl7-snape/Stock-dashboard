@@ -109,6 +109,21 @@ def _r(x):
     return round(x, 4 if abs(x) < 10 else 2)
 
 
+# ---------------------------------------------------------------- market cap
+def market_cap(info: dict, fast_info_cap=None):
+    """Yahoo's marketCap; if missing (it sometimes drops it for SGX names), shares x price,
+    then yfinance's fast_info estimate. Returns (value, basis)."""
+    if info.get("marketCap"):
+        return info["marketCap"], "reported"
+    shares = info.get("sharesOutstanding") or info.get("impliedSharesOutstanding")
+    price = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose")
+    if shares and price:
+        return shares * price, "shares x price"
+    if fast_info_cap:
+        return fast_info_cap, "yfinance estimate"
+    return None, None
+
+
 # ---------------------------------------------------------------- quality inputs
 def quality_inputs(market_cap, fcf, ocf, net_income, roe, roa, op_margin, revenue_growth, earnings_growth):
     """Derived profitability / cash-flow / growth fields (percent units)."""

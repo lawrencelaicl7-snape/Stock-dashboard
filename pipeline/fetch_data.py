@@ -126,7 +126,7 @@ def _tidy(df):
 
 
 # ---------------------------------------------------------------- fundamentals / events
-FUND_KEYS = ("long_name", "sector", "industry", "currency", "exchange", "market_cap", "pe", "pe_basis", "pb",
+FUND_KEYS = ("long_name", "sector", "industry", "currency", "exchange", "market_cap", "market_cap_basis", "pe", "pe_basis", "pb",
              "div_yield", "high_52w", "low_52w", "target_mean", "rating", "n_analysts", "website",
              "roe", "roa", "op_margin", "fcf", "ocf", "net_income", "fcf_yield", "cash_conversion",
              "revenue_growth", "earnings_growth")
@@ -141,6 +141,10 @@ def fundamentals(sym: str) -> dict | None:
     info = retry(lambda: yf.Ticker(sym).info, what=f"info {sym}")
     if not info or not (info.get("marketCap") or info.get("regularMarketPrice")):
         return None
+    mcap, mcap_basis = analytics.market_cap(info)
+    if mcap is None:
+        mcap, mcap_basis = analytics.market_cap(
+            info, retry(lambda: float(yf.Ticker(sym).fast_info["market_cap"]), what=f"fast_info {sym}", tries=2))
     pe = info.get("trailingPE")
     pe_basis = "trailing"
     if pe is None and info.get("forwardPE"):
@@ -151,7 +155,8 @@ def fundamentals(sym: str) -> dict | None:
         "industry": info.get("industry"),
         "currency": info.get("currency"),
         "exchange": info.get("exchange"),
-        "market_cap": info.get("marketCap"),
+        "market_cap": mcap,
+        "market_cap_basis": mcap_basis,
         "pe": pe,
         "pe_basis": pe_basis if pe is not None else None,
         "pb": info.get("priceToBook"),
@@ -164,7 +169,7 @@ def fundamentals(sym: str) -> dict | None:
         "n_analysts": info.get("numberOfAnalystOpinions"),
         "website": info.get("website"),
         **analytics.quality_inputs(
-            market_cap=info.get("marketCap"), fcf=info.get("freeCashflow"), ocf=info.get("operatingCashflow"),
+            market_cap=mcap, fcf=info.get("freeCashflow"), ocf=info.get("operatingCashflow"),
             net_income=info.get("netIncomeToCommon"), roe=_pct(info.get("returnOnEquity")),
             roa=_pct(info.get("returnOnAssets")), op_margin=_pct(info.get("operatingMargins")),
             revenue_growth=_pct(info.get("revenueGrowth")), earnings_growth=_pct(info.get("earningsGrowth"))),
@@ -341,6 +346,12 @@ def main():
                 rec["stale_fields"].append("fundamentals")
                 errors.append({"symbol": sym, "error": "fundamentals unavailable — kept previous values"})
             rec.update(f or {"currency": cfg["markets"][market]["currency"]})
+            if rec.get("market_cap") is None and prev and prev.get("market_cap"):
+                # Keep yesterday's market cap so the heat-map tile keeps its size.
+                rec["market_cap"] = prev["market_cap"]
+                rec["market_cap_basis"] = "previous run"
+                rec["stale_fields"].append("market_cap")
+                errors.append({"symbol": sym, "error": "market cap unavailable — kept previous value"})
             rec["currency"] = rec.get("currency") or cfg["markets"][market]["currency"]
             # Prefer Yahoo's 52w range; fall back to range computed from daily closes.
             rec["high_52w"] = rec.get("high_52w") or rec["high_52w_calc"]
